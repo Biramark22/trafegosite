@@ -1,0 +1,1227 @@
+<!DOCTYPE html><html lang="pt-br" class="light"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robô de Tráfego | Editar Campanha</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/line.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        danger: '#dc3545',
+                        success: '#28a745',
+                        warning: '#ffc107',
+                        info: '#17a2b8'
+                    }
+                }
+            }
+        }
+
+        // Detect dark mode
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.remove('light');
+            document.documentElement.classList.add('dark');
+        }
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.remove('light');
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+            }
+        });
+    </script>
+    <style>
+        /* Custom CSS for wizard steps */
+        .step {
+            display: none;
+        }
+        .step.active {
+            display: block;
+        }
+        .stepIndicator {
+            position: relative;
+            flex: 1;
+            padding-bottom: 30px;
+            font-size: 14px;
+            text-align: center;
+            color: #8898aa;
+        }
+        .stepIndicator.active {
+            color: #5D5CDE;
+            font-weight: 600;
+        }
+        .stepIndicator::before {
+            content: "";
+            position: absolute;
+            left: calc(50% - 10px);
+            bottom: 0;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            z-index: 1;
+        }
+        .stepIndicator.active::before {
+            background-color: #5D5CDE;
+        }
+        .stepIndicator:not(:first-child)::after {
+            content: "";
+            position: absolute;
+            left: -50%;
+            bottom: 10px;
+            width: 100%;
+            height: 2px;
+            background-color: #e9ecef;
+        }
+        .stepIndicator.active:not(:first-child)::after,
+        .stepIndicator.active:not(:last-child) + .stepIndicator::after {
+            background-color: #5D5CDE;
+        }
+        .float {
+            position: fixed;
+            width: 60px;
+            height: 60px;
+            bottom: 40px;
+            right: 40px;
+            background-color: #01B81A;
+            color: #FFF;
+            border-radius: 50px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .my-float {
+            font-size: 24px;
+        }
+        /* Dark mode styles */
+        .dark {
+            color-scheme: dark;
+        }
+        .dark body {
+            background-color: #181818;
+            color: #f8f9fa;
+        }
+        .dark .card {
+            background-color: #2d2d2d;
+        }
+        .dark .form-input,
+        .dark .form-select {
+            background-color: #3a3a3a;
+            border-color: #4a4a4a;
+            color: #f8f9fa;
+        }
+        /* Loading indicator */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #5D5CDE;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Gráfico de tráfego */
+        .traffic-bar {
+            height: 20px;
+            background-color: #5D5CDE;
+            border-radius: 4px;
+            transition: width 1s ease-in-out;
+        }
+        .dark .traffic-bar {
+            background-color: #7675ff;
+        }
+        
+        /* Estilo para o ping de conexão */
+        .ping {
+            display: inline-block;
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+            background-color: #28a745;
+            animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        @keyframes ping {
+            75%, 100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+        
+        /* Estilo para o widget de statísticas */
+        .stats-widget {
+            transition: all 0.3s ease;
+        }
+        .stats-widget:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Estilo para logs do sistema */
+        .system-log {
+            font-family: monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            height: 150px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px dashed rgba(128, 128, 128, 0.2);
+        }
+        .log-entry.info {
+            color: #5D5CDE;
+        }
+        .log-entry.success {
+            color: #28a745;
+        }
+        .log-entry.warning {
+            color: #ffc107;
+        }
+        .log-entry.error {
+            color: #dc3545;
+        }
+        
+        input[type=range].orient-vertical {
+            -webkit-appearance: slider-vertical;
+            writing-mode: bt-lr;
+            width: 8px;
+            height: 175px;
+            padding: 0 5px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div class="flex flex-col min-h-screen">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-800 shadow-sm">
+            <div class="container mx-auto px-4 py-3">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center">
+                        <a href="#" class="text-xl font-bold text-primary">
+                            <span class="flex items-center">
+                                <span class="mr-2">🤖</span>
+                                Robô de Tráfego
+                            </span>
+                        </a>
+                        <button class="ml-4 md:hidden text-gray-600 dark:text-gray-300" id="menuToggle">
+                            <i class="uil uil-bars text-2xl"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="relative">
+                            <div class="flex items-center px-2 py-1 mr-4 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                <span class="ping"></span>API Conectada
+                            </div>
+                            <button class="flex items-center text-gray-600 dark:text-gray-300 focus:outline-none" id="userMenu">
+                                <span class="mr-2 hidden sm:block">Esther de Campos Silva</span>
+                                <i class="uil uil-angle-down"></i>
+                            </button>
+                            <div class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-md shadow-lg py-1 hidden" id="userMenuDropdown">
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                    <i class="uil uil-user mr-2"></i> Dados Cadastrais
+                                </a>
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                    <i class="uil uil-sign-out-alt mr-2"></i> Sair
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex flex-1">
+            <!-- Sidebar -->
+            <aside class="w-64 bg-white dark:bg-gray-800 shadow-md hidden md:block" id="sidebar">
+                <div class="py-4 px-3">
+                    <ul class="space-y-2">
+                        <li>
+                            <a href="#" class="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                <i class="uil uil-estate mr-3 text-lg"></i>
+                                <span>Página Inicial</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                <i class="uil uil-star mr-3 text-lg"></i>
+                                <span>Comprar Novo Pacote</span>
+                                <span class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                                    <i class="uil uil-star"></i>
+                                </span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                <i class="uil uil-apps mr-3 text-lg"></i>
+                                <span>Comprar Combos</span>
+                                <span class="ml-auto bg-green-500 text-white text-xs px-2 py-1 rounded-full">NOVO</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                <i class="uil uil-list-ul mr-3 text-lg"></i>
+                                <span>Minhas Assinaturas</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center px-4 py-2 text-primary font-semibold bg-gray-100 dark:bg-gray-700 rounded-md">
+                                <i class="uil uil-create-dashboard mr-3 text-lg"></i>
+                                <span>Campanhas</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#dashboardBtn" id="dashboardBtn" class="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                <i class="uil uil-chart mr-3 text-lg"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                <i class="uil uil-user mr-3 text-lg"></i>
+                                <span>Dados Cadastrais</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                <i class="uil uil-whatsapp mr-3 text-lg text-green-500"></i>
+                                <span>Suporte Whatsapp</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                <i class="uil uil-question-circle mr-3 text-lg"></i>
+                                <span>F.A.Q</span>
+                            </a>
+                        </li>
+                        <li class="pt-5">
+                            <div class="px-4 text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold">MAIS</div>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                <i class="uil uil-clipboard-notes mr-3 text-lg"></i>
+                                <span>Site Principal</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                <i class="uil uil-signout mr-3 text-lg"></i>
+                                <span>Sair</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- Main content -->
+            <main class="flex-1 p-4">
+                <div id="campaignForm" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                    <!-- Breadcrumb -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                        <div>
+                            <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Editar Campanha</h1>
+                        </div>
+                        <div class="mt-2 sm:mt-0">
+                            <nav class="flex" aria-label="Breadcrumb">
+                                <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                                    <li class="inline-flex items-center">
+                                        <a href="#" class="inline-flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary">
+                                            <i class="uil uil-estate mr-1"></i>
+                                            Home
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <div class="flex items-center">
+                                            <i class="uil uil-angle-right text-gray-400 text-sm mx-1"></i>
+                                            <a href="#" class="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary">
+                                                <i class="uil uil-create-dashboard mr-1"></i>
+                                                Campanhas
+                                            </a>
+                                        </div>
+                                    </li>
+                                    <li>
+                                        <div class="flex items-center">
+                                            <i class="uil uil-angle-right text-gray-400 text-sm mx-1"></i>
+                                            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                                Editar Campanha
+                                            </span>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </nav>
+                        </div>
+                    </div>
+
+                    <!-- Form content -->
+                    <form id="editCampaignForm" class="mx-auto max-w-4xl">
+                        <input type="hidden" id="idcampanha" name="idcampanha" value="3113">
+                        <input type="hidden" id="planocampanha" name="planocampanha" value="unlimited">
+
+                        <!-- Steps navigation -->
+                        <div class="form-header flex flex-wrap mb-8 relative">
+                            <span class="stepIndicator active">Dados do Site</span>
+                            <span class="stepIndicator">Parâmetros de Visitas</span>
+                            <span class="stepIndicator">Origem</span>
+                            <span class="stepIndicator">Geolocalização</span>
+                            <span class="stepIndicator">Tempo e Fluxo</span>
+                        </div>
+
+                        <!-- Step 1: Dados do Site -->
+                        <div class="step active">
+                            <h2 class="text-center text-xl mb-6 text-gray-700 dark:text-gray-300">Dados do Site</h2>
+                            
+                            <div class="mb-4">
+                                <label for="nomecampanha" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da Campanha</label>
+                                <input type="text" id="nomecampanha" name="nomecampanha" value="Trafego" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" maxlength="70" placeholder="Ex: Minha Campanha do site" required="">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="site" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Site (URL)</label>
+                                <input type="text" id="site" name="site" value="https://forgem-shop.com.br/" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" maxlength="195" placeholder="Ex: https://robodetrafego.com" required="">
+                                <div id="site-status" class="text-xs text-gray-500 mt-1 hidden">
+                                    <span class="inline-flex items-center"><i class="uil uil-check-circle text-success mr-1"></i> Site verificado e acessível</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="titulo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Titulo Site</label>
+                                <input type="text" id="titulo" name="titulo" value="forgem-shop" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" maxlength="110" placeholder="Ex: Robô de Tráfego - Gerador de Trafégo Grátis" required="">
+                                <span class="text-xs text-primary mt-1 inline-block">O titulo cadastrado é utilizado como titulo de página nas visitas do Google Analytics.</span>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="uidanalytics" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ID de Métrica Google Analytics</label>
+                                <input type="text" id="uidanalytics" name="uidanalytics" value="G-FL6Y7HXY1R" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" maxlength="12" placeholder="G-XXXXXXXXXX" required="">
+                                <div id="ga-status" class="text-xs text-primary mt-1">
+                                    <span class="text-xs text-primary">O ID de Métricas do Google Analytics sempre inicia com a letra G seguido de traço e 10 letras e números.</span><br>
+                                    <span class="text-xs text-primary">Recomendamos o uso de uma conta SEPARADA do google analytics para que possa ter relatórios precisos do tráfego gerado pelo Robô de Tráfego e tráfego real de seu site.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Parâmetros de Visitas -->
+                        <div class="step hidden">
+                            <!-- Conteúdo do passo 2 similar ao código anterior -->
+                            <h2 class="text-center text-xl mb-6 text-gray-700 dark:text-gray-300">Parâmetros de visitas</h2>
+                            
+                            <div class="mb-4">
+                                <label for="keywords" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Palavras Chave</label>
+                                <input type="text" id="keywords" name="keywords" value="eletronicos,casa e jardim,fones de ouvidos" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white" maxlength="300" placeholder="Ex: robo de trafego, gerador de trafego, trafego gratis" required="">
+                                <span class="text-xs text-primary mt-1 inline-block">As palavras chave serão utilizadas para simular pesquisas que levaram ao seu site.</span>
+                            </div>
+                            
+                            <!-- Mais campos do passo 2... -->
+                        </div>
+
+                        <!-- Demais passos... -->
+                        <div class="step hidden">
+                            <!-- Step 3 content -->
+                        </div>
+                        <div class="step hidden">
+                            <!-- Step 4 content -->
+                        </div>
+                        <div class="step hidden">
+                            <!-- Step 5 content -->
+                        </div>
+
+                        <!-- Form navigation buttons -->
+                        <div class="mt-8 flex justify-between">
+                            <button type="button" id="prevBtn" class="px-6 py-2 border border-gray-300 text-gray-700 bg-white rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600">
+                                Voltar
+                            </button>
+                            <button type="button" id="nextBtn" class="px-6 py-2 border border-transparent text-white bg-primary rounded-md shadow-sm hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                Avançar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Dashboard section (initially hidden) -->
+                <div id="dashboard" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hidden">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                        <div>
+                            <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Dashboard da Campanha <span class="campaign-name">Trafego</span></h1>
+                        </div>
+                        <div class="mt-2 sm:mt-0">
+                            <button id="backToFormBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-primary bg-primary/10 hover:bg-primary/20">
+                                <i class="uil uil-arrow-left mr-2"></i> Voltar para Edição
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Status da campanha -->
+                    <div class="bg-green-50 dark:bg-green-900/30 border-l-4 border-green-500 p-4 mb-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="uil uil-check-circle text-green-500 text-2xl"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-green-700 dark:text-green-300">
+                                    Campanha ativa e gerando tráfego! Última sincronização: <span id="lastSync">agora</span>
+                                </p>
+                            </div>
+                            <div class="ml-auto">
+                                <button id="pauseBtn" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600">
+                                    <i class="uil uil-pause mr-1"></i> Pausar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats widgets -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="stats-widget bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4 border border-blue-100 dark:border-blue-800">
+                            <div class="flex items-center justify-between mb-1">
+                                <h3 class="text-blue-700 dark:text-blue-300 font-medium">Visitas Geradas</h3>
+                                <i class="uil uil-eye text-blue-500 text-xl"></i>
+                            </div>
+                            <div class="text-2xl font-bold text-blue-800 dark:text-blue-200" id="totalVisits">0</div>
+                            <div class="text-sm text-blue-600 dark:text-blue-400">
+                                <span class="font-medium text-green-500">+<span id="todayVisits">0</span></span> hoje
+                            </div>
+                        </div>
+                        
+                        <div class="stats-widget bg-purple-50 dark:bg-purple-900/30 rounded-lg p-4 border border-purple-100 dark:border-purple-800">
+                            <div class="flex items-center justify-between mb-1">
+                                <h3 class="text-purple-700 dark:text-purple-300 font-medium">Taxa de Rejeição</h3>
+                                <i class="uil uil-arrow-from-right text-purple-500 text-xl"></i>
+                            </div>
+                            <div class="text-2xl font-bold text-purple-800 dark:text-purple-200" id="bounceRate">0%</div>
+                            <div class="text-sm text-purple-600 dark:text-purple-400">
+                                <span class="font-medium">Configurado em <span id="configBounce">10%</span></span>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-widget bg-teal-50 dark:bg-teal-900/30 rounded-lg p-4 border border-teal-100 dark:border-teal-800">
+                            <div class="flex items-center justify-between mb-1">
+                                <h3 class="text-teal-700 dark:text-teal-300 font-medium">Tempo Médio na Página</h3>
+                                <i class="uil uil-clock text-teal-500 text-xl"></i>
+                            </div>
+                            <div class="text-2xl font-bold text-teal-800 dark:text-teal-200" id="avgTime">0min</div>
+                            <div class="text-sm text-teal-600 dark:text-teal-400">
+                                <span class="font-medium">Meta: <span id="configTime">8.0min</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tráfego em tempo real -->
+                    <div class="mb-6">
+                        <h2 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">Tráfego em Tempo Real</h2>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <div class="mb-4 flex items-center justify-between">
+                                <div>
+                                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Usuários ativos:</span>
+                                    <span class="ml-2 text-lg font-semibold text-primary" id="activeUsers">0</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="text-sm text-gray-500 dark:text-gray-400 mr-2">Status API:</span>
+                                    <span class="inline-flex items-center text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                        <span class="ping"></span>Conectado
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Fluxo de Visitas (últimos 30min)</h3>
+                                    <div class="h-32 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600 p-2">
+                                        <div class="relative h-full">
+                                            <div id="trafficGraph" class="flex items-end h-full space-x-1">
+                                                <!-- Traffic bars will be dynamically added here -->
+                                            </div>
+                                            <div class="absolute bottom-0 left-0 w-full border-t border-gray-200 dark:border-gray-600 -mb-px"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Origens do Tráfego</h3>
+                                    <div class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600 p-2">
+                                        <div id="trafficSources" class="space-y-2">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-gray-600 dark:text-gray-400">Orgânico</span>
+                                                <div class="flex-1 mx-2">
+                                                    <div class="h-2 rounded-full bg-gray-200 dark:bg-gray-600">
+                                                        <div class="h-2 rounded-full bg-blue-500" style="width: 65%"></div>
+                                                    </div>
+                                                </div>
+                                                <span class="text-xs font-medium">65%</span>
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-gray-600 dark:text-gray-400">Referência</span>
+                                                <div class="flex-1 mx-2">
+                                                    <div class="h-2 rounded-full bg-gray-200 dark:bg-gray-600">
+                                                        <div class="h-2 rounded-full bg-green-500" style="width: 15%"></div>
+                                                    </div>
+                                                </div>
+                                                <span class="text-xs font-medium">15%</span>
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-gray-600 dark:text-gray-400">Social</span>
+                                                <div class="flex-1 mx-2">
+                                                    <div class="h-2 rounded-full bg-gray-200 dark:bg-gray-600">
+                                                        <div class="h-2 rounded-full bg-purple-500" style="width: 12%"></div>
+                                                    </div>
+                                                </div>
+                                                <span class="text-xs font-medium">12%</span>
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-gray-600 dark:text-gray-400">Direto</span>
+                                                <div class="flex-1 mx-2">
+                                                    <div class="h-2 rounded-full bg-gray-200 dark:bg-gray-600">
+                                                        <div class="h-2 rounded-full bg-yellow-500" style="width: 8%"></div>
+                                                    </div>
+                                                </div>
+                                                <span class="text-xs font-medium">8%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sistema de logs e informações da API -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h2 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">Logs do Sistema</h2>
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <div class="system-log" id="systemLog">
+                                    <!-- Logs serão inseridos aqui -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h2 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4">Parâmetros da API</h2>
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">Status da API</div>
+                                        <div class="text-sm font-medium text-success" id="apiStatus">Conectada</div>
+                                    </div>
+                                    <div class="bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">Versão da API</div>
+                                        <div class="text-sm font-medium" id="apiVersion">v2.5.1</div>
+                                    </div>
+                                    <div class="bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">Pacote Ativo</div>
+                                        <div class="text-sm font-medium" id="activePlan">Premium Ilimitado</div>
+                                    </div>
+                                    <div class="bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">ID da Campanha</div>
+                                        <div class="text-sm font-medium" id="apiCampaignId">3113</div>
+                                    </div>
+                                    <div class="bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">Thread do Gerador</div>
+                                        <div class="text-sm font-medium" id="apiGenerator">Ativo (16 threads)</div>
+                                    </div>
+                                    <div class="bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                        <div class="text-xs text-gray-500 dark:text-gray-400">Proxy Rotativo</div>
+                                        <div class="text-sm font-medium" id="apiProxy">Ativo (Pool Global)</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Saúde do Sistema</span>
+                                        <span class="text-xs font-medium text-success">97%</span>
+                                    </div>
+                                    <div class="h-2 rounded-full bg-gray-200 dark:bg-gray-600">
+                                        <div class="h-2 rounded-full bg-green-500" style="width: 97%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Footer -->
+        <footer class="bg-white dark:bg-gray-800 shadow-sm mt-8 py-4">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <div class="mb-2 md:mb-0">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">© 2025 - Robô de Tráfego</p>
+                    </div>
+                    <div>
+                        <ul class="flex space-x-4">
+                            <li>
+                                <a href="mailto:contato@robodetrafego.com" class="text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary">
+                                    contato@robodetrafego.com
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Whatsapp Float Button -->
+    <a href="https://api.whatsapp.com/send/?phone=5522991018220" class="float" target="_blank" title="Nos chame no whatsapp">
+        <i class="uil uil-whatsapp my-float"></i>
+    </a>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="loading hidden">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        // API Mockup - Simulação da API para o Robô de Tráfego
+        class TrafficRobotAPI {
+            constructor() {
+                this.connected = false;
+                this.campaign = null;
+                this.trafficGeneration = null;
+                this.logs = [];
+                this.stats = {
+                    totalVisits: 0,
+                    todayVisits: 0,
+                    bounceRate: 0,
+                    avgTime: 0,
+                    activeUsers: 0
+                };
+                
+                // Callbacks
+                this.onConnectCallback = null;
+                this.onLogCallback = null;
+                this.onStatsUpdateCallback = null;
+            }
+            
+            // Conectar à API
+            async connect() {
+                // Simula uma conexão com delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                this.connected = true;
+                this.log('info', 'Conexão estabelecida com o servidor da API');
+                
+                if (this.onConnectCallback) {
+                    this.onConnectCallback(true);
+                }
+                
+                return true;
+            }
+            
+            // Verificar site
+            async verifySite(url) {
+                await new Promise(resolve => setTimeout(resolve, 800));
+                this.log('info', `Verificando acesso ao site: ${url}`);
+                
+                // Simula verificação bem-sucedida
+                this.log('success', `Site ${url} verificado e acessível`);
+                return { success: true, statusCode: 200 };
+            }
+            
+            // Verificar Google Analytics
+            async verifyGA(gaId) {
+                await new Promise(resolve => setTimeout(resolve, 600));
+                
+                // Validação básica: G- seguido de 10 caracteres
+                const isValid = /^G-[A-Z0-9]{10}$/i.test(gaId);
+                
+                if (isValid) {
+                    this.log('success', `ID do Google Analytics ${gaId} validado`);
+                    return { success: true };
+                } else {
+                    this.log('error', `ID do Google Analytics ${gaId} inválido`);
+                    return { success: false, error: 'Formato inválido' };
+                }
+            }
+            
+            // Criar ou atualizar campanha
+            async saveCampaign(campaignData) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                this.campaign = {
+                    id: campaignData.idcampanha || Math.floor(Math.random() * 10000),
+                    name: campaignData.nomecampanha,
+                    url: campaignData.site,
+                    title: campaignData.titulo,
+                    gaId: campaignData.uidanalytics,
+                    // Outros dados da campanha
+                    plan: campaignData.planocampanha,
+                    created: new Date(),
+                    updated: new Date()
+                };
+                
+                this.log('success', `Campanha '${this.campaign.name}' salva com sucesso`);
+                return { success: true, campaignId: this.campaign.id };
+            }
+            
+            // Iniciar geração de tráfego
+            async startTrafficGeneration() {
+                if (!this.campaign) {
+                    this.log('error', 'Não há campanha configurada para iniciar geração de tráfego');
+                    return { success: false, error: 'No campaign configured' };
+                }
+                
+                this.log('info', `Iniciando geração de tráfego para ${this.campaign.url}`);
+                
+                // Configura o intervalo para simular a geração de tráfego
+                this.trafficGeneration = setInterval(() => {
+                    // Simula novas visitas
+                    const newVisits = Math.floor(Math.random() * 5) + 1;
+                    this.stats.totalVisits += newVisits;
+                    this.stats.todayVisits += newVisits;
+                    
+                    // Atualiza taxa de rejeição (com pequena variação)
+                    this.stats.bounceRate = 10 + (Math.random() * 3 - 1.5);
+                    
+                    // Atualiza tempo médio (com pequena variação)
+                    this.stats.avgTime = 8.0 + (Math.random() * 1 - 0.5);
+                    
+                    // Atualiza usuários ativos (com variação)
+                    this.stats.activeUsers = Math.floor(Math.random() * 8) + 3;
+                    
+                    // Chama o callback de atualização de estatísticas
+                    if (this.onStatsUpdateCallback) {
+                        this.onStatsUpdateCallback(this.stats);
+                    }
+                    
+                    // Adiciona um log ocasionalmente
+                    if (Math.random() > 0.7) {
+                        const actions = [
+                            'Gerando visita via busca orgânica',
+                            'Gerando visita via referência',
+                            'Simulando visita de usuário móvel',
+                            'Simulando visita de usuário desktop',
+                            'Gerando visita com origem de rede social',
+                            'Simulando sessão com múltiplas páginas'
+                        ];
+                        
+                        const selectedAction = actions[Math.floor(Math.random() * actions.length)];
+                        this.log('info', selectedAction);
+                    }
+                }, 2000); // Atualiza a cada 2 segundos
+                
+                this.log('success', `Geração de tráfego iniciada para a campanha '${this.campaign.name}'`);
+                return { success: true };
+            }
+            
+            // Parar geração de tráfego
+            stopTrafficGeneration() {
+                if (this.trafficGeneration) {
+                    clearInterval(this.trafficGeneration);
+                    this.trafficGeneration = null;
+                    this.log('info', 'Geração de tráfego pausada');
+                }
+            }
+            
+            // Registrar log
+            log(type, message) {
+                const log = {
+                    id: this.logs.length + 1,
+                    type: type,
+                    message: message,
+                    timestamp: new Date()
+                };
+                
+                this.logs.push(log);
+                
+                // Limita número de logs armazenados
+                if (this.logs.length > 100) {
+                    this.logs.shift();
+                }
+                
+                // Chama o callback se estiver definido
+                if (this.onLogCallback) {
+                    this.onLogCallback(log);
+                }
+                
+                return log;
+            }
+            
+            // Event handlers
+            onConnect(callback) {
+                this.onConnectCallback = callback;
+            }
+            
+            onLog(callback) {
+                this.onLogCallback = callback;
+            }
+            
+            onStatsUpdate(callback) {
+                this.onStatsUpdateCallback = callback;
+            }
+        }
+
+        // Inicialização da aplicação
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elementos do formulário
+            const form = document.getElementById('editCampaignForm');
+            const campaignFormSection = document.getElementById('campaignForm');
+            const dashboardSection = document.getElementById('dashboard');
+            const siteInput = document.getElementById('site');
+            const siteStatus = document.getElementById('site-status');
+            const gaInput = document.getElementById('uidanalytics');
+            const gaStatus = document.getElementById('ga-status');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const dashboardBtn = document.getElementById('dashboardBtn');
+            const backToFormBtn = document.getElementById('backToFormBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const systemLog = document.getElementById('systemLog');
+            const trafficGraph = document.getElementById('trafficGraph');
+            
+            // Estado da aplicação
+            let currentStep = 0;
+            const stepIndicators = document.querySelectorAll('.stepIndicator');
+            const steps = document.querySelectorAll('.step');
+            
+            // Inicializa a API
+            const api = new TrafficRobotAPI();
+            let isPaused = false;
+            let graphData = Array(30).fill(0);
+            
+            // Controle de passos do formulário
+            function showStep(n) {
+                steps.forEach(step => step.classList.add('hidden'));
+                stepIndicators.forEach(indicator => indicator.classList.remove('active'));
+                
+                steps[n].classList.remove('hidden');
+                stepIndicators[n].classList.add('active');
+                
+                // Show/hide prev button
+                if (n === 0) {
+                    prevBtn.style.display = 'none';
+                } else {
+                    prevBtn.style.display = 'block';
+                }
+                
+                // Update next button text
+                if (n === steps.length - 1) {
+                    nextBtn.textContent = 'Salvar';
+                } else {
+                    nextBtn.textContent = 'Avançar';
+                }
+            }
+
+            // Navigate between steps
+            function nextPrev(n) {
+                // Validate current step before proceeding
+                if (n === 1 && !validateStep(currentStep)) return;
+                
+                currentStep += n;
+                
+                // Submit form if on last step
+                if (currentStep >= steps.length) {
+                    submitForm();
+                    return;
+                }
+                
+                showStep(currentStep);
+            }
+
+            // Basic validation for each step
+            function validateStep(step) {
+                let valid = true;
+                const currentStepEl = steps[step];
+                const inputs = currentStepEl.querySelectorAll('input[required]');
+                
+                inputs.forEach(input => {
+                    if (!input.value) {
+                        input.classList.add('border-red-500');
+                        valid = false;
+                    } else {
+                        input.classList.remove('border-red-500');
+                    }
+                });
+                
+                // First step validation (check Google Analytics ID format)
+                if (step === 0) {
+                    const gaId = gaInput.value;
+                    if (gaId && !gaId.match(/^G-[A-Z0-9]{10}$/i)) {
+                        gaInput.classList.add('border-red-500');
+                        alert('O ID de Métricas do Google Analytics deve começar com G- seguido de 10 caracteres alfanuméricos.');
+                        return false;
+                    }
+                }
+                
+                return valid;
+            }
+            
+            // Submit form
+            async function submitForm() {
+                document.getElementById('loading').classList.remove('hidden');
+                
+                try {
+                    // Connect to API if not already connected
+                    if (!api.connected) {
+                        await api.connect();
+                    }
+                    
+                    // Collect form data
+                    const formData = new FormData(form);
+                    const campaignData = Object.fromEntries(formData.entries());
+                    
+                    // Save campaign
+                    const result = await api.saveCampaign(campaignData);
+                    
+                    if (result.success) {
+                        // Start traffic generation
+                        await api.startTrafficGeneration();
+                        
+                        // Update UI elements for dashboard
+                        updateDashboardUI(campaignData);
+                        
+                        // Show dashboard
+                        campaignFormSection.classList.add('hidden');
+                        dashboardSection.classList.remove('hidden');
+                        
+                        // Reset form for future use
+                        currentStep = 0;
+                        showStep(currentStep);
+                    } else {
+                        alert('Erro ao salvar campanha: ' + (result.error || 'Erro desconhecido'));
+                    }
+                } catch (error) {
+                    console.error('Erro:', error);
+                    alert('Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.');
+                } finally {
+                    document.getElementById('loading').classList.add('hidden');
+                }
+            }
+            
+            // Update dashboard UI
+            function updateDashboardUI(campaignData) {
+                // Update campaign name
+                const campaignNameElements = document.querySelectorAll('.campaign-name');
+                campaignNameElements.forEach(el => {
+                    el.textContent = campaignData.nomecampanha;
+                });
+                
+                // Update configured values
+                document.getElementById('configBounce').textContent = campaignData.tx_rejeicao + '%';
+                document.getElementById('configTime').textContent = campaignData.tempo_visitas + 'min';
+                
+                // Update last sync time
+                document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
+            }
+            
+            // Update stats UI
+            function updateStatsUI(stats) {
+                document.getElementById('totalVisits').textContent = stats.totalVisits.toLocaleString();
+                document.getElementById('todayVisits').textContent = stats.todayVisits.toLocaleString();
+                document.getElementById('bounceRate').textContent = stats.bounceRate.toFixed(1) + '%';
+                document.getElementById('avgTime').textContent = stats.avgTime.toFixed(1) + 'min';
+                document.getElementById('activeUsers').textContent = stats.activeUsers;
+                
+                // Update traffic graph
+                graphData.shift();
+                graphData.push(stats.activeUsers);
+                
+                updateTrafficGraph();
+            }
+            
+            // Update traffic graph
+            function updateTrafficGraph() {
+                // Clear current graph
+                trafficGraph.innerHTML = '';
+                
+                // Find max value for scaling
+                const maxValue = Math.max(...graphData, 5);
+                
+                // Add bars
+                graphData.forEach((value, index) => {
+                    const height = value ? (value / maxValue) * 100 : 0;
+                    const bar = document.createElement('div');
+                    bar.className = 'traffic-bar';
+                    bar.style.width = '3px';
+                    bar.style.height = height + '%';
+                    
+                    // Highlight most recent bars
+                    if (index >= graphData.length - 5) {
+                        bar.style.opacity = 0.7 + ((index - (graphData.length - 5)) * 0.06);
+                    } else {
+                        bar.style.opacity = 0.5;
+                    }
+                    
+                    trafficGraph.appendChild(bar);
+                });
+            }
+            
+            // Add log to UI
+            function addLogToUI(log) {
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry ${log.type}`;
+                
+                const time = new Date(log.timestamp).toLocaleTimeString();
+                logEntry.textContent = `[${time}] ${log.message}`;
+                
+                // Add to log container
+                systemLog.prepend(logEntry);
+                
+                // Limit displayed logs
+                if (systemLog.children.length > 50) {
+                    systemLog.removeChild(systemLog.lastChild);
+                }
+            }
+            
+            // UI Event handlers
+            prevBtn.addEventListener('click', () => nextPrev(-1));
+            nextBtn.addEventListener('click', () => nextPrev(1));
+            
+            dashboardBtn.addEventListener('click', function() {
+                campaignFormSection.classList.add('hidden');
+                dashboardSection.classList.remove('hidden');
+                
+                // If API not connected, connect and start simulation
+                if (!api.connected) {
+                    api.connect().then(() => {
+                        // Create default campaign if none exists
+                        if (!api.campaign) {
+                            const campaignData = {
+                                idcampanha: '3113',
+                                nomecampanha: document.getElementById('nomecampanha').value,
+                                site: document.getElementById('site').value,
+                                titulo: document.getElementById('titulo').value,
+                                uidanalytics: document.getElementById('uidanalytics').value,
+                                planocampanha: 'unlimited',
+                                tx_rejeicao: 10,
+                                tempo_visitas: 8.0
+                            };
+                            
+                            api.saveCampaign(campaignData).then(() => {
+                                api.startTrafficGeneration();
+                                updateDashboardUI(campaignData);
+                            });
+                        } else {
+                            // Just start traffic generation if campaign exists
+                            if (!api.trafficGeneration) {
+                                api.startTrafficGeneration();
+                            }
+                        }
+                    });
+                }
+            });
+            
+            backToFormBtn.addEventListener('click', function() {
+                dashboardSection.classList.add('hidden');
+                campaignFormSection.classList.remove('hidden');
+            });
+            
+            pauseBtn.addEventListener('click', function() {
+                if (isPaused) {
+                    // Resume
+                    api.startTrafficGeneration();
+                    pauseBtn.innerHTML = '<i class="uil uil-pause mr-1"></i> Pausar';
+                    pauseBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                    pauseBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                    isPaused = false;
+                } else {
+                    // Pause
+                    api.stopTrafficGeneration();
+                    pauseBtn.innerHTML = '<i class="uil uil-play mr-1"></i> Continuar';
+                    pauseBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                    pauseBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+                    isPaused = true;
+                }
+            });
+            
+            // Site URL validation
+            siteInput.addEventListener('blur', function() {
+                if (siteInput.value) {
+                    api.verifySite(siteInput.value).then(result => {
+                        if (result.success) {
+                            siteStatus.innerHTML = '<span class="inline-flex items-center"><i class="uil uil-check-circle text-success mr-1"></i> Site verificado e acessível</span>';
+                            siteStatus.classList.remove('hidden');
+                            siteInput.classList.remove('border-red-500');
+                            siteInput.classList.add('border-green-500');
+                        } else {
+                            siteStatus.innerHTML = '<span class="inline-flex items-center text-danger"><i class="uil uil-times-circle text-danger mr-1"></i> Não foi possível verificar o site</span>';
+                            siteStatus.classList.remove('hidden');
+                            siteInput.classList.add('border-red-500');
+                        }
+                    });
+                }
+            });
+            
+            // Google Analytics validation
+            gaInput.addEventListener('blur', function() {
+                if (gaInput.value) {
+                    api.verifyGA(gaInput.value).then(result => {
+                        if (result.success) {
+                            const successMsg = document.createElement('div');
+                            successMsg.className = 'flex items-center text-success text-xs mt-1';
+                            successMsg.innerHTML = '<i class="uil uil-check-circle mr-1"></i> ID do Google Analytics validado';
+                            
+                            // Replace status with success message
+                            const statusEl = document.getElementById('ga-status');
+                            statusEl.innerHTML = '';
+                            statusEl.appendChild(successMsg);
+                            
+                            gaInput.classList.remove('border-red-500');
+                            gaInput.classList.add('border-green-500');
+                        } else {
+                            // Reset to default message with error
+                            gaStatus.innerHTML = `
+                                <span class="text-xs text-danger"><i class="uil uil-times-circle mr-1"></i> ID do Google Analytics inválido. Deve começar com G- seguido de 10 caracteres.</span><br>
+                                <span class="text-xs text-primary">O ID de Métricas do Google Analytics sempre inicia com a letra G seguido de traço e 10 letras e números.</span>
+                            `;
+                            gaInput.classList.add('border-red-500');
+                        }
+                    });
+                }
+            });
+            
+            // API event handlers
+            api.onConnect(connected => {
+                console.log('API Connected:', connected);
+            });
+            
+            api.onLog(log => {
+                addLogToUI(log);
+            });
+            
+            api.onStatsUpdate(stats => {
+                updateStatsUI(stats);
+            });
+            
+            // Initialize
+            showStep(currentStep);
+            
+            // Mobile menu toggle
+            document.getElementById('menuToggle').addEventListener('click', function() {
+                const sidebar = document.getElementById('sidebar');
+                sidebar.classList.toggle('hidden');
+            });
+            
+            // User menu dropdown
+            document.getElementById('userMenu').addEventListener('click', function() {
+                document.getElementById('userMenuDropdown').classList.toggle('hidden');
+            });
+        });
+    </script>
+
+
+</body></html>
